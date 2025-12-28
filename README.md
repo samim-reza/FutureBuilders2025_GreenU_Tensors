@@ -31,6 +31,9 @@ When internet is available, the system uses the MySQL server database as the cen
 - AI medical consultation (text + optional image)
    - Image analysis is supported online.
    - Offline mode supports text-only triage (image-only consultations require internet).
+
+   ![User prompt page](for_redme/user_prompt_page.png)
+
 - Offline-first storage and caching
    - Consultations are saved in IndexedDB when offline
    - Doctors / Hospitals / NGOs are cached locally for browsing
@@ -43,36 +46,43 @@ When internet is available, the system uses the MySQL server database as the cen
    - User can choose whether the AI should use previous medical history and recent chat context
 - Recommended doctors
    - The response includes a recommended specialization + matching doctor list from the database
+
+   ![Prompt result](for_redme/prompt_result.png)
+
+   ![Suggested doctor list](for_redme/suggest_doctor.png)
+
 - Admin case management dashboard
    - Track cases as: pending → under supervision → solved
    - Admin can “take case”, “release case”, and “mark solved”
+
+   ![Admin panel](for_redme/admin_panel.png)
+
+   ![Admin summary](for_redme/summary_from_admin.png)
+
 - User history & privacy controls
    - Users can view their consultation history and delete single or multiple consultations
+
+   ![User history page](for_redme/user_history_page.png)
+
 - Better UX while waiting
    - Shows rotating encouraging messages during AI processing
 - Bilingual response (Bangla/English)
    - If a user prompts in Bengali (বাংলা), the AI responds in Bengali
    - If a user prompts in English, the AI responds in English
 
-## Screenshots
+## UI Highlights
+
+### Authentication
 
 ![User login system](for_redme/user_login_system.png)
 
-![User prompt page](for_redme/user_prompt_page.png)
-
-![Prompt result](for_redme/prompt_result.png)
-
-![Suggested doctor list](for_redme/suggest_doctor.png)
+### Resources Directory
 
 ![Doctors list](for_redme/doctors_list.png)
 
+### Consultation Output Format
+
 ![Consultation report](for_redme/consultation_report.png)
-
-![User history page](for_redme/user_history_page.png)
-
-![Admin panel](for_redme/admin_panel.png)
-
-![Admin summary](for_redme/summary_from_admin.png)
 
 ## Architecture (Repo-Accurate)
 
