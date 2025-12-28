@@ -1,202 +1,199 @@
-# 🏥 WeCare - Medical Assistant for Rural Bangladesh
+<!--
+If you are viewing this on GitHub, images are in ./for_redme
+-->
 
-An offline-first Progressive Web App (PWA) providing medical consultation, first aid guidance, and healthcare resource discovery for rural areas with limited internet connectivity.
+# WeCare (WeCare Medical Service App)
 
-## ✨ Features
+Offline-first medical consultation and triage web app designed for rural / low-connectivity environments.
 
-- **🤖 AI-Powered Medical Consultation**: Get medical advice using vision-language models (Ollama Qwen)
-- **📴 Offline-First Architecture**: Works without internet using IndexedDB for local storage
-- **🔄 Auto-Sync**: Automatically syncs data when connection is restored
-- **🏥 Healthcare Resources**: Find doctors, hospitals, and NGOs with cached local data
-- **👤 User Accounts**: Track medical history for better recommendations (toggle on/off)
-- **🚨 AI Triage**: Automatically determines priority (Critical/High/Medium/Low)
-- **💊 First Aid Suggestions**: Get immediate treatment steps
-- **📱 Progressive Web App**: Install on mobile devices like a native app
+## Team & Institute
 
-## 🏗️ Architecture
+- Green University of Bangladesh
+- Team: GreenU_Tensors
+- Members:
+   - Samim Reza
+   - Fahim Sarker Mridul
+   - Maheer Jabin Priya
 
-- **Backend**: FastAPI with Ollama integration
-- **Database**: MySQL for cloud sync
-- **Local Storage**: IndexedDB for offline data
-- **AI Model**: Qwen3-VL-2B (via Ollama)
-- **Auth**: JWT-based authentication
+## What We Built
 
-## 📋 Prerequisites
+WeCare is a local-first medical service app that can run inside a small region (LAN / router / community network) and still remain useful when the internet is unavailable.
 
-### 1. Ollama
+For this project, we ran the AI model locally on our PC: Qwen3-VL-2B served via Ollama.
+
+When internet is available, the system uses the MySQL server database as the central source of truth; when internet is not available, it stores data locally in IndexedDB and syncs to MySQL once connectivity returns.
+
+- When online, the app uses the backend AI (vision + text) and syncs consultation data to a central database.
+- When offline, the app continues to operate using browser storage (IndexedDB) and cached resources, then auto-syncs when connectivity returns.
+
+## Key Features
+
+- AI medical consultation (text + optional image)
+   - Image analysis is supported online.
+   - Offline mode supports text-only triage (image-only consultations require internet).
+- Offline-first storage and caching
+   - Consultations are saved in IndexedDB when offline
+   - Doctors / Hospitals / NGOs are cached locally for browsing
+   - Auto-sync triggers when the device comes back online
+- Priority-based triage
+   - Priority levels: low / medium / high / critical
+- First aid guidance
+   - Output includes immediate first-aid suggestions
+- Patient context control
+   - User can choose whether the AI should use previous medical history and recent chat context
+- Recommended doctors
+   - The response includes a recommended specialization + matching doctor list from the database
+- Admin case management dashboard
+   - Track cases as: pending → under supervision → solved
+   - Admin can “take case”, “release case”, and “mark solved”
+- User history & privacy controls
+   - Users can view their consultation history and delete single or multiple consultations
+- Better UX while waiting
+   - Shows rotating encouraging messages during AI processing
+- Bilingual response (Bangla/English)
+   - If a user prompts in Bengali (বাংলা), the AI responds in Bengali
+   - If a user prompts in English, the AI responds in English
+
+## Screenshots
+
+![User login system](for_redme/user_login_system.png)
+
+![User prompt page](for_redme/user_prompt_page.png)
+
+![Prompt result](for_redme/prompt_result.png)
+
+![Suggested doctor list](for_redme/suggest_doctor.png)
+
+![Doctors list](for_redme/doctors_list.png)
+
+![Consultation report](for_redme/consultation_report.png)
+
+![User history page](for_redme/user_history_page.png)
+
+![Admin panel](for_redme/admin_panel.png)
+
+![Admin summary](for_redme/summary_from_admin.png)
+
+## Architecture (Repo-Accurate)
+
+- Frontend: vanilla HTML/CSS/JS + PWA (service worker)
+- Backend: FastAPI
+- AI: Qwen3-VL-2B running locally via Ollama (`/api/generate`)
+- Database: MySQL (SQLAlchemy)
+- Offline storage: IndexedDB (consultations + cached doctors/hospitals/ngos)
+- Auth: JWT
+- Case workflow: Consultation status + supervising admin
+
+## How Offline Sync Works
+
+- Online
+   - Consultations are sent to `POST /api/consultation`
+   - Data is stored centrally in the MySQL server database
+   - Results return immediately to the user
+   - Doctors/hospitals/ngos lists are fetched and cached in IndexedDB
+- Offline
+   - The UI generates a basic triage result and saves it to IndexedDB as “unsynced”
+- Back online
+   - The frontend automatically pushes unsynced consultations to `POST /api/sync/consultations`
+   - Synced items are marked as synced locally
+
+## Run Locally
+
+### Prerequisites
+
+- Python 3.10+
+- MySQL server
+- Ollama installed and running (for AI)
+
+### 1) Setup Python
+
 ```bash
-# Install Ollama (https://ollama.ai)
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull the vision model
-ollama pull qwen3-vl:2b
-```
-
-### 2. MySQL
-```bash
-# Install MySQL
-sudo apt install mysql-server
-
-# Create database and user
-sudo mysql
-```
-
-```sql
-CREATE DATABASE wecare_db;
-CREATE USER 'wecare_user'@'localhost' IDENTIFIED BY 'wecare_password';
-GRANT ALL PRIVILEGES ON wecare_db.* TO 'wecare_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
-
-### 3. Python 3.10+
-```bash
-python3 --version  # Should be 3.10 or higher
-```
-
-## 🚀 Installation
-
-### 1. Clone & Setup Python Environment
-```bash
-cd /home/samim01/Code/FutureBuilders2025_GreenU_Tensors
-
-# Create virtual environment (if not exists)
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate
-
-# Install Python dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables (Optional)
-Create a `.env` file:
+### 2) Configure environment
+
+- Copy `.env.example` → `.env` and update the values for your machine.
+
+### 3) Initialize DB and seed demo data
+
 ```bash
-# Database
-DATABASE_URL=mysql+pymysql://wecare_user:wecare_password@localhost:3306/wecare_db
-
-# Ollama
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=qwen3-vl:2b
-
-# Auth (change in production!)
-SECRET_KEY=your-secret-key-change-in-production
-```
-
-### 3. Initialize Database & Seed Data
-```bash
-# Run seed script to create tables and insert dummy data
+source venv/bin/activate
 python seed_data.py
 ```
 
-This will create:
-- 7 doctors across different specializations
-- 5 hospitals (government & private)
-- 5 NGOs and support organizations
+Optional (creates an admin user):
 
-## 🏃 Running the Application
-
-### Terminal 1: Start Ollama Server
 ```bash
+source venv/bin/activate
+python create_admin.py
+```
+
+### 4) Start Ollama + pull model
+
+```bash
+ollama pull qwen3-vl:2b
 ollama serve
 ```
 
-### Terminal 2: Start FastAPI Server
+### 5) Start the server
+
 ```bash
 source venv/bin/activate
 uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Access the Application
-Open your browser and go to:
-```
-http://localhost:8000
-```
+### 6) Open in browser
 
-## 📱 Usage Guide
+- Landing: `http://localhost:8000/`
+- App: `http://localhost:8000/index.html`
+- Admin: `http://localhost:8000/admin.html`
 
-### First Time Setup
-1. **Register**: Create an account with username, email, and password
-2. **Login**: Sign in to access the consultation service
+## Run on a Local Network (No Internet)
 
-### Medical Consultation
-1. Navigate to **"New Consultation"** tab
-2. Describe your symptoms in the text area
-3. (Optional) Upload an image if you have visible symptoms
-4. Toggle **"Use my medical history"** if you want personalized recommendations
-5. Click **"Get Medical Advice"**
+This project is designed to work in a community/local-LAN setup (similar to a small local server in a village/area).
 
-The AI will provide:
-- Analysis of symptoms
-- Priority level (Critical/High/Medium/Low)
-- First aid steps
-- Recommended doctor specialization
-- List of available doctors
+1. Start the server with `--host 0.0.0.0`
+2. Find the server PC’s LAN IP (example): `172.20.221.57`
+3. Other devices connected to the same router open: `http://<LAN-IP>:8000`
 
-### Finding Healthcare Resources
-1. Navigate to **"Doctors & Hospitals"** tab
-2. Browse:
-   - **Doctors**: Specializations, contact info, fees, availability
-   - **Hospitals**: Locations, facilities, emergency availability
-   - **NGOs**: Support services, contact information
+Notes:
+- If other devices cannot connect, check firewall rules and router “AP/client isolation”.
 
-### Offline Mode
-When **offline** (no internet):
-- ✅ Basic symptom triage still works
-- ✅ View cached doctors, hospitals, NGOs
-- ✅ Consultations saved locally
-- 🔄 Data automatically syncs when back online
+## API Overview
 
-## 🗂️ Project Structure
+- Auth
+   - `POST /api/auth/register`
+   - `POST /api/auth/login`
+   - `GET /api/auth/me`
+- Consultation
+   - `POST /api/consultation` (text + optional image)
+   - `GET /api/consultations/history`
+   - `DELETE /api/consultations/{id}`
+   - `POST /api/consultations/delete-multiple`
+   - `POST /api/sync/consultations` (offline → online sync)
+- Resources
+   - `GET /api/doctors`
+   - `GET /api/hospitals`
+   - `GET /api/ngos`
+- Admin case management
+   - `GET /api/admin/stats`
+   - `GET /api/admin/consultations`
+   - `POST /api/admin/consultations/{id}/take-case`
+   - `POST /api/admin/consultations/{id}/release-case`
+   - `POST /api/admin/consultations/{id}/mark-solved`
 
-```
-FutureBuilders2025_GreenU_Tensors/
-├── app.py                 # Main FastAPI application
-├── models.py              # Database models (SQLAlchemy)
-├── database.py            # Database connection & session
-├── auth.py                # JWT authentication logic
-├── seed_data.py           # Database seeding script
-├── requirements.txt       # Python dependencies
-├── index.html             # Main HTML interface
-├── manifest.json          # PWA manifest
-├── service-worker.js      # Service worker for offline support
-├── static/
-│   ├── db.js              # IndexedDB manager
-│   ├── api.js             # API client & sync logic
-│   └── app.js             # Frontend application logic
-└── uploads/               # User-uploaded images
-```
+## Vision / Next Steps
 
-## 🔧 Configuration
+- “Local server per region” deployment model (LAN-based clinic/community server)
+- Smarter routing to the nearest facility/hospital when internet becomes available
+- Replace / extend Ollama with a vLLM-based backend in future deployments
 
-### Change Ollama Model
-```bash
-# Use a different model
-export OLLAMA_MODEL=llava:7b
-ollama pull llava:7b
-```
+## License
 
-### Change Database
-Edit `database.py` or set `DATABASE_URL` environment variable:
-```python
-DATABASE_URL = "mysql+pymysql://user:password@host:port/database"
-```
-
-### Adjust AI Triage Keywords
-Edit priority detection in `app.py` → `analyze_priority()` function
-
-## 🛠️ API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-
-### Consultation
-- `POST /api/consultation` - Create consultation (with/without image)
-- `POST /api/sync/consultations` - Sync offline consultations
-- `GET /api/consultations/history` - Get user's consultation history
+License is not included in this repository yet.
 
 ### Resources
 - `GET /api/doctors?specialization=X` - Get doctors

@@ -1,0 +1,18 @@
+Our information you need to keep in redme file
+
+Green University of Bangladesh
+Team: GreenU_Tensors
+Name:Samim Reza
+Name: Fahim Sarker Mridul
+Name: Maheer jabin priya
+
+read the full repo, here we build this app wecare, basically it is a medical service app, that will work on basically locally, when it will be connected to the internet then it will sync otherwise it will use local indexdb and cache data, we are thinking about to make it like local server that it is hosting in a small region and everyone is connected to the server like ftp server so it is possible here to make it run under that server without even internet, 
+so now basically a user will give propmt according to his/her need, it can also analys image if the user upload and give feedback according to need,, in feed back it will suggest first aid treatment also,
+there is an option that it will use the patient previous data or not, the chatbot can ans with both history or freshly according to users choice, then if more then one user give prompt all the prompt will be sent to nearest
+hospital when internet available, and the patient emergency will be highlighted according to low, high, critical and the hsptal will choose according to this,
+ also if any hospital picked it will be shown and to others that the case picked, so there there is mark like , pending , under supervision, solved, so it is woring on priority based emergency.
+ when no internet connection it is using indexdb for local for all user,  there is also ngo and hospital list in cache data an d showing on browser, we use vllm qwen model for backedn service, in prompt output to the user it also give the doctors matching list and appointmnet suggestion with the doctor as need, there are also a doctor database, 
+ when the model is thinking the user can feel boring so there is interactive alter type motivation when waiting, , there is bangla language also, 
+ if the user give prompt in bengali then the model will give output in bengali if prompt in english then it will give otput in english, also there are history chat of user for his personal issue if he want to he can delete his sickness related chat
+
+ i have keep the necessery image in for_redme folder, see those file name and according to need make the best readme file
