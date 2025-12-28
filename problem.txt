@@ -1,0 +1,9 @@
+so we are making a web app and here is the descriptiona
+
+Problem statement
+
+The silent struggle : Why medical support in bangladesh's hill tracts and rural regions remains hard to find
+
+In the sprawling greens of bangladesh;s hill tracts and the distant streches of rural villages, life often moves with a quiet rhythm yet behind that dalm lies a persistent struggle: access to medical support for millions living in these region, healthcare is not a guaranteed right but a long-distance hope, often travelling on unpaved roads, across rivrs or thwough steep, forested terrain.
+
+create a solution to overcome this challage for the helpless people with limited internet access, with the following requirements.

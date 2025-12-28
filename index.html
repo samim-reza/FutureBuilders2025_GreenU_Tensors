@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Qwen Image + Prompt</title>
+</head>
+<body>
+    <h2>Qwen Local Web Demo</h2>
+    <form id="qwen-form">
+        <label>Prompt:</label><br>
+        <input type="text" id="prompt" name="prompt" required><br><br>
+
+        <label>Image:</label><br>
+        <input type="file" id="image" name="image" accept="image/*" required><br><br>
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <h3>Response:</h3>
+    <pre id="response"></pre>
+
+    <script>
+    const form = document.getElementById('qwen-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData();
+        formData.append("prompt", document.getElementById('prompt').value);
+        formData.append("image", document.getElementById('image').files[0]);
+
+        const res = await fetch("http://localhost:8000/generate", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+        document.getElementById('response').innerText = data.response;
+    });
+    </script>
+</body>
+</html>
