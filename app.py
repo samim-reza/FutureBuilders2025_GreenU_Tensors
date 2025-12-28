@@ -27,6 +27,45 @@ from auth import (
     get_current_user,
 )
 
+
+def detect_language(text: str) -> str:
+    """Detect whether user text is Bengali or English.
+
+    Returns:
+        "bn" for Bengali, "en" otherwise.
+    """
+    s = (text or "").strip()
+    if not s:
+        return "en"
+
+    bengali_chars = len(re.findall(r"[\u0980-\u09FF]", s))
+    latin_chars = len(re.findall(r"[A-Za-z]", s))
+
+    # If Bengali script is present and is not trivially small, treat as Bengali.
+    if bengali_chars >= 3 and bengali_chars >= latin_chars:
+        return "bn"
+    return "en"
+
+
+def bengali_ratio(text: str) -> float:
+    s = text or ""
+    bn = len(re.findall(r"[\u0980-\u09FF]", s))
+    total_letters = bn + len(re.findall(r"[A-Za-z]", s))
+    return (bn / total_letters) if total_letters else 0.0
+
+
+BN_SPECIALIZATION_TO_EN = {
+    "সাধারণ চিকিৎসা": "General Medicine",
+    "শিশুরোগ": "Pediatrics",
+    "স্ত্রীরোগ": "Gynecology",
+    "চর্মরোগ": "Dermatology",
+    "হৃদরোগ": "Cardiology",
+    "অর্থোপেডিক্স": "Orthopedics",
+    "কান-নাক-গলা": "ENT",
+    "স্নায়ুরোগ": "Neurology",
+    "গ্যাস্ট্রোএন্টারোলজি": "Gastroenterology",
+}
+
 app = FastAPI(title="WeCare - Medical Assistant")
 
 # Allow requests from any origin (for testing)
@@ -209,12 +248,23 @@ def analyze_priority(symptoms: str, ai_response: str) -> PriorityLevel:
         "chest pain", "heart attack", "stroke", "severe bleeding", "unconscious",
         "breathing difficulty", "severe pain", "emergency", "critical", "urgent care needed"
     ]
+    critical_keywords_bn = [
+        "বুকে ব্যথা", "হার্ট অ্যাটাক", "স্ট্রোক", "অতিরিক্ত রক্তপাত", "অজ্ঞান",
+        "শ্বাসকষ্ট", "তীব্র ব্যথা", "জরুরি", "ইমার্জেন্সি"
+    ]
     high_keywords = [
         "high fever", "severe", "infection", "fracture", "injury", "wound",
         "urgent", "immediate", "consult immediately"
     ]
+    high_keywords_bn = [
+        "উচ্চ জ্বর", "তীব্র", "সংক্রমণ", "হাড় ভাঙা", "আঘাত", "ক্ষত",
+        "দ্রুত", "অবিলম্বে", "তাৎক্ষণিক"
+    ]
     medium_keywords = [
         "fever", "pain", "rash", "cough", "headache", "medical attention"
+    ]
+    medium_keywords_bn = [
+        "জ্বর", "ব্যথা", "র‍্যাশ", "কাশি", "মাথাব্যথা", "ডাক্তার"
     ]
     
     text = (symptoms + " " + ai_response).lower()
@@ -222,12 +272,24 @@ def analyze_priority(symptoms: str, ai_response: str) -> PriorityLevel:
     for keyword in critical_keywords:
         if keyword in text:
             return PriorityLevel.CRITICAL
+
+    for keyword in critical_keywords_bn:
+        if keyword in text:
+            return PriorityLevel.CRITICAL
     
     for keyword in high_keywords:
         if keyword in text:
             return PriorityLevel.HIGH
+
+    for keyword in high_keywords_bn:
+        if keyword in text:
+            return PriorityLevel.HIGH
     
     for keyword in medium_keywords:
+        if keyword in text:
+            return PriorityLevel.MEDIUM
+
+    for keyword in medium_keywords_bn:
         if keyword in text:
             return PriorityLevel.MEDIUM
     
@@ -245,12 +307,87 @@ def extract_specialization(ai_response: str) -> Optional[str]:
     for spec in specializations:
         if spec.lower() in text:
             return spec
+
+    # Bengali labels → English DB values
+    for bn_label, en_value in BN_SPECIALIZATION_TO_EN.items():
+        if bn_label in ai_response:
+            return en_value
     
     return None
 
-async def generate_summary(full_response: str) -> str:
-    """Generate a concise summary of the AI response using Ollama"""
-    summary_prompt = f"""Summarize the following medical consultation response in 2-3 sentences. 
+def build_consultation_prompt(*, language: str, context: str, conversation_history: str, user_part: str) -> str:
+    if language == "bn":
+        specialization_choices_bn = " / ".join(BN_SPECIALIZATION_TO_EN.keys())
+        return f"""আপনি ডা. উইকেয়ার, বাংলাদেশের গ্রামীণ এলাকায় প্রাথমিক চিকিৎসা ও জরুরি চিকিৎসায় অভিজ্ঞ একজন চিকিৎসক।
+
+ভাষা নির্দেশনা (অত্যন্ত গুরুত্বপূর্ণ): আপনার উত্তর ১০০% বাংলা ভাষায় হবে। কোনো ইংরেজি বাক্য/শব্দ ব্যবহার করবেন না।
+
+গুরুত্বপূর্ণ: আপনি শুধুমাত্র স্বাস্থ্য ও চিকিৎসা সংক্রান্ত পরামর্শ দেবেন। প্রশ্নটি যদি স্বাস্থ্য/লক্ষণ/চিকিৎসা সম্পর্কিত না হয়, তাহলে বিনয়ের সাথে ঠিক এই বাক্যটি লিখবেন:
+"আমি ডা. উইকেয়ার, একজন মেডিকেল সহায়ক। আমি শুধুমাত্র স্বাস্থ্য সংক্রান্ত প্রশ্নে সাহায্য করতে পারি। অনুগ্রহ করে আপনার চিকিৎসা লক্ষণ বা স্বাস্থ্য উদ্বেগ বর্ণনা করুন, এবং আমি আপনাকে সাহায্য করতে পেরে খুশি হব।"
+
+{context}{conversation_history}{user_part}
+
+সর্বোচ্চ ৩০০ শব্দে সংক্ষিপ্ত উত্তর দিন এবং নিচের শিরোনামগুলো ঠিক রেখে লিখুন:
+
+**1. দ্রুত মূল্যায়ন**
+- সম্ভাব্য সমস্যা ও তীব্রতা (১-২ বাক্য)
+- জরুরি/ইমার্জেন্সি কি? (হ্যাঁ/না + ছোট কারণ)
+
+**2. প্রাথমিক চিকিৎসা — এখনই কী করবেন (ডাক্তার/হাসপাতালে যাওয়ার আগে)**
+- বাড়িতে করা যায় এমন ৩-৪টি সহজ পদক্ষেপ
+
+**3. কখন ডাক্তার দেখাবেন**
+- যেতে হবে কি? (হ্যাঁ/না/সম্ভবত)
+- কোন ধরণের ডাক্তার/বিশেষজ্ঞ লাগতে পারে? (শুধু এই তালিকা থেকে ১টি বেছে লিখুন: {specialization_choices_bn})
+- কোন সতর্ক লক্ষণ হলে সাথে সাথে হাসপাতালে যেতে হবে
+
+**4. প্রতিরোধের পরামর্শ**
+- ২-৩টি সংক্ষিপ্ত পরামর্শ
+
+শেষে ডা. উইকেয়ারের পক্ষ থেকে ১ লাইনের আশ্বস্তকারী কথা লিখুন।"""
+
+    return f"""You are Dr. WeCare, an experienced medical doctor specializing in primary care and emergency medicine in rural Bangladesh. You have 15 years of experience treating patients with limited access to healthcare facilities.
+
+CRITICAL LANGUAGE INSTRUCTION: Your answer must be 100% English. Do not use Bengali.
+
+IMPORTANT: You ONLY provide medical and healthcare advice. If the patient's query is not related to health, medicine, symptoms, or medical concerns, politely respond with exactly:
+"I'm Dr. WeCare, a medical assistant. I can only help with health-related questions. Please describe your medical symptoms or health concerns, and I'll be happy to assist you."
+
+{context}{conversation_history}{user_part}
+
+Provide a CONCISE response (maximum 300 words) with these sections:
+
+**1. Quick Assessment**
+- Brief diagnosis and severity (1-2 sentences)
+- Is it urgent/emergency? (Yes/No with brief reason)
+
+**2. First Aid - What To Do NOW (Before Doctor/Hospital)**
+- 3-4 immediate steps the patient can take at home
+- Keep it simple and practical
+
+**3. When to See a Doctor**
+- Should they go? (Yes/No/Maybe)
+- What type of doctor/specialist?
+- Warning signs that need immediate attention
+
+**4. Prevention Tips**
+- 2-3 quick preventive measures
+
+Keep responses SHORT, practical, and compassionate. Focus on immediate actionable advice. End with a brief encouraging note from Dr. WeCare."""
+
+
+async def generate_summary(full_response: str, *, language: str) -> str:
+    """Generate a concise summary of the AI response using Ollama in the same language."""
+    if language == "bn":
+        summary_prompt = f"""নিচের চিকিৎসা পরামর্শটি ২-৩টি বাক্যে সংক্ষেপ করুন।
+শুধু রোগের ধারণা/জরুরি অবস্থা/করণীয়—এই মূল তথ্যগুলো রাখুন।
+
+মূল উত্তর:
+{full_response}
+
+শুধু সারসংক্ষেপ লিখুন, অতিরিক্ত কিছু নয়।"""
+    else:
+        summary_prompt = f"""Summarize the following medical consultation response in 2-3 sentences.
 Keep only the most critical information about diagnosis, urgency, and recommended action.
 
 Original response:
@@ -282,6 +419,56 @@ Provide ONLY the summary, no additional text:"""
         # Fallback: return first 200 chars
         return full_response[:200] + "..."
 
+
+async def enforce_response_language(*, expected_language: str, user_text: str, response_text: str) -> str:
+    """If model responded in the wrong language, ask it once to rewrite in the expected language."""
+    if not response_text:
+        return response_text
+
+    bn_r = bengali_ratio(response_text)
+    looks_bengali = bn_r >= 0.2
+    if expected_language == "bn" and looks_bengali:
+        return response_text
+    if expected_language == "en" and not looks_bengali:
+        return response_text
+
+    if expected_language == "bn":
+        rewrite_prompt = f"""আপনার আগের উত্তরটি পুরোপুরি বাংলায় আবার লিখুন। কোনো ইংরেজি শব্দ/বাক্য ব্যবহার করবেন না। অর্থ ও চিকিৎসা পরামর্শ যেন একই থাকে।
+
+রোগীর প্রশ্ন:
+{user_text}
+
+আগের উত্তর:
+{response_text}
+
+শুধু সংশোধিত বাংলা উত্তর লিখুন।"""
+    else:
+        rewrite_prompt = f"""Rewrite your previous answer entirely in English. Do not use Bengali. Keep the medical meaning and advice the same.
+
+User question:
+{user_text}
+
+Previous answer:
+{response_text}
+
+Provide ONLY the rewritten English answer."""
+
+    try:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": rewrite_prompt,
+            "stream": False,
+            "options": {"temperature": 0.2},
+        }
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            res = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
+            res.raise_for_status()
+            data = res.json()
+            rewritten = (data.get("response", "") or "").strip()
+            return rewritten if rewritten else response_text
+    except Exception:
+        return response_text
+
 @app.post("/api/consultation")
 async def create_consultation(
     symptoms: Optional[str] = Form(None),
@@ -293,6 +480,7 @@ async def create_consultation(
     """Main consultation endpoint - works with or without image"""
 
     symptoms_text = (symptoms or "").strip()
+    language = detect_language(symptoms_text) if symptoms_text else "bn"  # Bangladesh default for image-only
     if not symptoms_text and image is None:
         raise HTTPException(status_code=400, detail="Provide symptoms text or upload an image")
     
@@ -332,39 +520,12 @@ async def create_consultation(
     else:
         user_part = "Patient provided an image. Analyze the image for any visible medical issue and give advice.\n"
 
-    prompt = f"""You are Dr. WeCare, an experienced medical doctor specializing in primary care and emergency medicine in rural Bangladesh. You have 15 years of experience treating patients with limited access to healthcare facilities.
-
-CRITICAL LANGUAGE INSTRUCTION: 
-- Detect the language of the patient's query carefully
-- If the patient writes in Bengali (বাংলা), respond ENTIRELY in Bengali
-- If the patient writes in English, respond ENTIRELY in English
-- Match the patient's language exactly - do not mix languages in your response
-
-IMPORTANT: You ONLY provide medical and healthcare advice. If the patient's query is not related to health, medicine, symptoms, or medical concerns, politely respond:
-- In Bengali: "আমি ডা. উইকেয়ার, একজন মেডিকেল সহায়ক। আমি শুধুমাত্র স্বাস্থ্য সংক্রান্ত প্রশ্নে সাহায্য করতে পারি। অনুগ্রহ করে আপনার চিকিৎসা লক্ষণ বা স্বাস্থ্য উদ্বেগ বর্ণনা করুন, এবং আমি আপনাকে সাহায্য করতে পেরে খুশি হব।"
-- In English: "I'm Dr. WeCare, a medical assistant. I can only help with health-related questions. Please describe your medical symptoms or health concerns, and I'll be happy to assist you."
-
-{context}{conversation_history}{user_part}
-
-Provide a CONCISE response (maximum 300 words) with these sections:
-
-**1. Quick Assessment** (দ্রুত মূল্যায়ন if Bengali)
-- Brief diagnosis and severity (1-2 sentences)
-- Is it urgent/emergency? (Yes/No with brief reason)
-
-**2. First Aid - What To Do NOW (Before Doctor/Hospital)** (প্রাথমিক চিকিৎসা if Bengali)
-- 3-4 immediate steps the patient can take at home
-- Keep it simple and practical
-
-**3. When to See a Doctor** (কখন ডাক্তার দেখাবেন if Bengali)
-- Should they go? (Yes/No/Maybe)
-- What type of doctor/specialist?
-- Warning signs that need immediate attention
-
-**4. Prevention Tips** (প্রতিরোধের পরামর্শ if Bengali)
-- 2-3 quick preventive measures
-
-Keep responses SHORT, practical, and compassionate. Focus on immediate actionable advice. End with a brief encouraging note from Dr. WeCare."""
+    prompt = build_consultation_prompt(
+        language=language,
+        context=context,
+        conversation_history=conversation_history,
+        user_part=user_part,
+    )
 
     # Call Ollama
     image_path = None
@@ -419,10 +580,17 @@ Keep responses SHORT, practical, and compassionate. Focus on immediate actionabl
         raise HTTPException(status_code=res.status_code, detail=res.text)
     
     data = res.json()
-    ai_response = data.get("response", "")
+    ai_response = (data.get("response", "") or "").strip()
+
+    # If model disobeys language instruction, rewrite once.
+    ai_response = await enforce_response_language(
+        expected_language=language,
+        user_text=symptoms_text or "(image-only)",
+        response_text=ai_response,
+    )
     
     # Analyze priority and extract specialization
-    priority = analyze_priority(symptoms, ai_response)
+    priority = analyze_priority(symptoms_text, ai_response)
     specialization = extract_specialization(ai_response)
     
     # Extract first aid from response (simple heuristic)
@@ -433,7 +601,7 @@ Keep responses SHORT, practical, and compassionate. Focus on immediate actionabl
             first_aid = "First aid" + parts[1].split("\n\n")[0]
     
     # Generate summary for storage (keep full response for returning to user)
-    ai_summary = await generate_summary(ai_response)
+    ai_summary = await generate_summary(ai_response, language=language)
     
     # Save consultation with summary
     consultation = Consultation(

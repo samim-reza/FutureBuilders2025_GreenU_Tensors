@@ -84,15 +84,104 @@ When internet is available, the system uses the MySQL server database as the cen
 
 ![Consultation report](for_redme/consultation_report.png)
 
-## Architecture (Repo-Accurate)
+## Architecture
 
-- Frontend: vanilla HTML/CSS/JS + PWA (service worker)
-- Backend: FastAPI
-- AI: Qwen3-VL-2B running locally via Ollama (`/api/generate`)
-- Database: MySQL (SQLAlchemy)
-- Offline storage: IndexedDB (consultations + cached doctors/hospitals/ngos)
-- Auth: JWT
-- Case workflow: Consultation status + supervising admin
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Frontend (PWA)                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ landing.html │  │  index.html  │  │  admin.html  │     │
+│  │  (Landing)   │  │ (Patient App)│  │ (Admin Panel)│     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│         │                   │                   │           │
+│         └───────────────────┴───────────────────┘           │
+│                             │                               │
+│           ┌─────────────────┴─────────────────┐            │
+│           │      static/app.js (UI Logic)     │            │
+│           │      static/api.js (API Client)    │            │
+│           │      static/db.js (IndexedDB Mgr)  │            │
+│           │   service-worker.js (Offline PWA)  │            │
+│           └─────────────────┬─────────────────┘            │
+└─────────────────────────────┼─────────────────────────────┘
+                              │
+                    Online ───┤
+                              │
+┌─────────────────────────────┼─────────────────────────────┐
+│                      Backend (FastAPI)                     │
+│           ┌─────────────────┴─────────────────┐            │
+│           │         app.py (Main API)         │            │
+│           │    auth.py (JWT Authentication)   │            │
+│           │     models.py (DB Models)         │            │
+│           │   database.py (DB Connection)     │            │
+│           └─────────────────┬─────────────────┘            │
+│                             │                               │
+│         ┌───────────────────┼───────────────────┐          │
+│         │                   │                   │          │
+│    ┌────▼────┐         ┌───▼────┐         ┌───▼────┐     │
+│    │  MySQL  │         │ Ollama │         │  File  │     │
+│    │Database │         │(Qwen3  │         │ Uploads│     │
+│    │(Central)│         │ VL-2B) │         │        │     │
+│    └─────────┘         └────────┘         └────────┘     │
+└─────────────────────────────────────────────────────────────┘
+
+Offline Mode:
+- Frontend stores consultations in IndexedDB
+- Cached doctors/hospitals/ngos available for browsing
+- Auto-syncs to backend when connection restored
+```
+
+### Technology Stack
+
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **PWA**: Service Worker, IndexedDB, Cache API
+- **Backend**: FastAPI (Python)
+- **AI**: Qwen3-VL-2B running locally via Ollama
+- **Database**: MySQL with SQLAlchemy ORM
+- **Authentication**: JWT tokens
+- **Image Processing**: Pillow (PIL)
+
+## Project Structure
+
+```
+FutureBuilders2025_GreenU_Tensors/
+│
+├── Frontend (HTML/CSS/JS)
+│   ├── landing.html           # Landing page with auth links
+│   ├── index.html             # Patient consultation dashboard
+│   ├── admin.html             # Admin case management panel
+│   ├── manifest.json          # PWA manifest
+│   └── service-worker.js      # Offline caching & sync
+│
+├── Static Assets
+│   ├── static/
+│   │   ├── app.js            # Main frontend logic
+│   │   ├── api.js            # API client & network manager
+│   │   ├── db.js             # IndexedDB wrapper
+│   │   ├── doctor.png        # UI images
+│   │   ├── land1.jpg
+│   │   └── map.png
+│   └── uploads/              # User-uploaded medical images
+│
+├── Backend (Python/FastAPI)
+│   ├── app.py                # Main API routes & consultation logic
+│   ├── auth.py               # JWT authentication
+│   ├── models.py             # SQLAlchemy database models
+│   ├── database.py           # DB connection & session management
+│   ├── seed_data.py          # Populate DB with demo data
+│   ├── create_admin.py       # Create admin user script
+│   └── migrate_add_case_management.py  # DB migration script
+│
+├── Configuration
+│   ├── .env.example          # Environment variables template
+│   ├── .env                  # Local configuration (not in git)
+│   ├── requirements.txt      # Python dependencies
+│   └── setup.sh              # Quick setup script
+│
+└── Documentation
+    ├── README.md             # This file
+    ├── for_redme/            # Screenshots for documentation
+    └── problem.txt           # Problem statement notes
+```
 
 ## How Offline Sync Works
 
@@ -205,46 +294,46 @@ Notes:
 
 License is not included in this repository yet.
 
-### Resources
-- `GET /api/doctors?specialization=X` - Get doctors
-- `GET /api/hospitals` - Get hospitals
-- `GET /api/ngos` - Get NGOs
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Could not connect to Ollama"
-- Ensure `ollama serve` is running
-- Check `OLLAMA_HOST` points to correct address
+- Ensure `ollama serve` is running in a separate terminal
+- Check `OLLAMA_HOST` environment variable points to `http://localhost:11434`
+- Verify Ollama is installed: `ollama --version`
 
 ### Database connection errors
 - Verify MySQL is running: `sudo systemctl status mysql`
-- Check credentials in `database.py` or `.env`
-- Ensure database and user exist
+- Check credentials in `.env` or `database.py`
+- Ensure database `wecare_db` exists
+- Run `python seed_data.py` to initialize tables
 
 ### Module import errors
-- Activate venv: `source venv/bin/activate`
-- Reinstall: `pip install -r requirements.txt`
+- Activate virtual environment: `source venv/bin/activate`
+- Reinstall dependencies: `pip install -r requirements.txt`
 
 ### Offline mode not working
 - Check browser console for IndexedDB errors
-- Ensure service worker is registered (check DevTools → Application)
+- Ensure service worker is registered (DevTools → Application → Service Workers)
+- Clear browser cache and reload
 
-## 🔒 Security Notes
+### Bengali/English language mixing
+- The model has been instructed to respond in the same language as the prompt
+- If issues persist, check `OLLAMA_MODEL` is set to `qwen3-vl:2b`
 
-⚠️ **Production Deployment**:
-- Change `SECRET_KEY` in `auth.py`
-- Use HTTPS
-- Set proper CORS origins
-- Use environment variables for secrets
-- Enable rate limiting
+## Security Notes
 
-## 📄 License
+⚠️ **For Production Deployment**:
+- Change `SECRET_KEY` in `.env` (generate with `openssl rand -hex 32`)
+- Use HTTPS with proper SSL certificates
+- Set specific CORS origins (not `*`)
+- Store `.env` securely, never commit to git
+- Enable rate limiting on API endpoints
+- Use strong MySQL passwords
+- Set up firewall rules (allow only necessary ports)
 
-MIT License - Feel free to use for humanitarian purposes
+## Contributing
 
-## 🙏 Acknowledgments
-
-Built for **FutureBuilders2025** to address healthcare accessibility challenges in Bangladesh's Chittagong Hill Tracts and rural regions.
+This project was built for **FutureBuilders2025** by Team GreenU_Tensors from Green University of Bangladesh to address healthcare accessibility challenges in Bangladesh's rural regions, particularly the Chittagong Hill Tracts.
 
 ---
 
