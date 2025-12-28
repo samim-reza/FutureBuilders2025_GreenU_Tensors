@@ -20,8 +20,10 @@ class WeCareAPI {
             ...options.headers,
         };
 
-        if (this.token) {
-            headers['Authorization'] = `Bearer ${this.token}`;
+        // Always pull the freshest token (in case another tab/login updated it)
+        const token = this.token || localStorage.getItem('wecare_token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
 
         // Don't set Content-Type for FormData (browser will set it with boundary)

@@ -126,14 +126,56 @@ async function handleConsultation(event) {
     const form = event.target;
     const formData = new FormData(form);
     const submitBtn = form.querySelector('button[type="submit"]');
+
+    const symptoms = (formData.get('symptoms') || '').toString().trim();
+    const imageFile = formData.get('image');
+    const hasImage = imageFile instanceof File && imageFile.size > 0;
+
+    // If no file selected, remove the field so backend receives image=None.
+    if (!hasImage) {
+        formData.delete('image');
+    }
+
+    // If symptoms is blank, remove it so backend receives symptoms=None.
+    if (!symptoms) {
+        formData.delete('symptoms');
+    }
+
+    if (!symptoms && !hasImage) {
+        showNotification('Please enter symptoms or upload an image.', 'error');
+        return;
+    }
+    if (!api.isOnline() && hasImage && !symptoms) {
+        showNotification('Image-only consultation needs internet. Add symptoms text or go online.', 'error');
+        return;
+    }
     
     submitBtn.disabled = true;
     submitBtn.textContent = 'Analyzing...';
+    
+    // Show encouraging messages while waiting
+    const encouragingMessages = [
+        '💚 Stay calm, help is on the way...',
+        '✨ Analyzing your symptoms carefully...',
+        '🌟 You\'re taking the right step for your health...',
+        '💪 Recovery starts with understanding...',
+        '🏥 Getting the best medical advice for you...',
+        '🌈 Your health matters, we\'re here to help...',
+        '❤️ Hang in there, expert guidance coming...',
+        '🌸 Every symptom has a solution...'
+    ];
+    
+    let messageIndex = 0;
+    const messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % encouragingMessages.length;
+        submitBtn.textContent = encouragingMessages[messageIndex];
+    }, 2000);
     
     try {
         if (api.isOnline()) {
             // Online mode - send to server
             const result = await api.createConsultation(formData);
+            clearInterval(messageInterval);
             displayConsultationResult(result);
             showNotification('Consultation complete!', 'success');
         } else {
@@ -162,8 +204,10 @@ async function handleConsultation(event) {
         
         form.reset();
     } catch (error) {
+        clearInterval(messageInterval);
         showNotification(error.message, 'error');
     } finally {
+        clearInterval(messageInterval);
         submitBtn.disabled = false;
         submitBtn.textContent = 'Get Medical Advice';
     }
@@ -216,13 +260,23 @@ function displayConsultationResult(result) {
     priorityBadge.className = `priority priority-${result.priority}`;
     priorityBadge.textContent = `Priority: ${result.priority.toUpperCase()}`;
     
-    // AI Response
-    document.getElementById('ai-response').textContent = result.ai_response;
+    // AI Response - render markdown as HTML
+    const aiResponseEl = document.getElementById('ai-response');
+    if (typeof marked !== 'undefined') {
+        aiResponseEl.innerHTML = marked.parse(result.ai_response);
+    } else {
+        aiResponseEl.textContent = result.ai_response;
+    }
     
     // First Aid
     if (result.first_aid_suggestions) {
         document.getElementById('first-aid-section').classList.remove('hidden');
-        document.getElementById('first-aid-text').textContent = result.first_aid_suggestions;
+        const firstAidEl = document.getElementById('first-aid-text');
+        if (typeof marked !== 'undefined') {
+            firstAidEl.innerHTML = marked.parse(result.first_aid_suggestions);
+        } else {
+            firstAidEl.textContent = result.first_aid_suggestions;
+        }
     } else {
         document.getElementById('first-aid-section').classList.add('hidden');
     }

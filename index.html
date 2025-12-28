@@ -138,7 +138,57 @@
             padding: 20px;
             border-radius: 5px;
             margin-top: 20px;
-            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .response-box h1, .response-box h2, .response-box h3 {
+            color: #4CAF50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .response-box h1 { font-size: 24px; }
+        .response-box h2 { font-size: 20px; }
+        .response-box h3 { font-size: 18px; }
+
+        .response-box p {
+            margin-bottom: 12px;
+        }
+
+        .response-box ul, .response-box ol {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .response-box li {
+            margin-bottom: 6px;
+        }
+
+        .response-box strong {
+            color: #222;
+            font-weight: 600;
+        }
+
+        .response-box code {
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .response-box hr {
+            border: none;
+            border-top: 2px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .response-box blockquote {
+            border-left: 4px solid #4CAF50;
+            padding-left: 15px;
+            margin-left: 0;
+            color: #666;
+            font-style: italic;
         }
 
         .priority {
@@ -328,7 +378,8 @@
                 <form id="consultation-form" onsubmit="handleConsultation(event)">
                     <div class="form-group">
                         <label>Describe Your Symptoms</label>
-                        <textarea name="symptoms" placeholder="Example: I have a fever and headache for 2 days..." required></textarea>
+                        <textarea name="symptoms" placeholder="Example: I have a fever and headache for 2 days..."></textarea>
+                        <small style="display:block;margin-top:6px;color:#666;">Provide symptoms text or upload an image (at least one is required).</small>
                     </div>
 
                     <div class="form-group">
@@ -377,6 +428,8 @@
         </div>
     </div>
 
+    <!-- Markdown renderer -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/static/db.js"></script>
     <script src="/static/api.js"></script>
     <script src="/static/app.js"></script>

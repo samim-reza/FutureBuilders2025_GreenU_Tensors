@@ -32,3 +32,5 @@ this was my problem, now i want to make the web app, with python, what i need to
 it will try to use cache data, whenever get any onternet access, it will load the needed information locally to use later
 
 and at last the name of the app will be wecare
+
+help to relieve this skin disease

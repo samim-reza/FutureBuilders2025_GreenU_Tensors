@@ -11,6 +11,12 @@ import base64
 import os
 import httpx
 import re
+import io
+
+try:
+    from PIL import Image
+except Exception:  # Pillow not installed
+    Image = None
 
 from database import get_db, init_db
 from models import User, Consultation, MedicalHistory, Doctor, Hospital, NGO, PriorityLevel
@@ -211,13 +217,17 @@ def extract_specialization(ai_response: str) -> Optional[str]:
 
 @app.post("/api/consultation")
 async def create_consultation(
-    symptoms: str = Form(...),
+    symptoms: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     use_history: bool = Form(True),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Main consultation endpoint - works with or without image"""
+
+    symptoms_text = (symptoms or "").strip()
+    if not symptoms_text and image is None:
+        raise HTTPException(status_code=400, detail="Provide symptoms text or upload an image")
     
     # Build context with medical history if enabled
     context = ""
@@ -234,17 +244,37 @@ async def create_consultation(
                 context += "\n"
             context += "\n"
     
-    # Prepare AI prompt
-    prompt = f"""{context}Patient symptoms: {symptoms}
+    # Prepare AI prompt (support text-only, image-only, or both)
+    if symptoms_text:
+        user_part = f"Patient query: {symptoms_text}\n"
+    else:
+        user_part = "Patient provided an image. Analyze the image for any visible medical issue and give advice.\n"
 
-As a medical AI assistant for rural Bangladesh, provide:
-1. Brief analysis of the symptoms
-2. Possible conditions (mention if urgent/emergency)
-3. First aid steps the patient can take immediately
-4. Whether they should see a doctor and what type of specialist
-5. Any warning signs to watch for
+    prompt = f"""You are Dr. WeCare, an experienced medical doctor specializing in primary care and emergency medicine in rural Bangladesh. You have 15 years of experience treating patients with limited access to healthcare facilities.
 
-Be clear, practical, and appropriate for limited healthcare access."""
+IMPORTANT: You ONLY provide medical and healthcare advice. If the patient's query is not related to health, medicine, symptoms, or medical concerns, politely respond: "I'm Dr. WeCare, a medical assistant. I can only help with health-related questions. Please describe your medical symptoms or health concerns, and I'll be happy to assist you."
+
+{context}{user_part}
+
+Provide a CONCISE response (maximum 300 words) with these sections:
+
+**1. Quick Assessment**
+- Brief diagnosis and severity (1-2 sentences)
+- Is it urgent/emergency? (Yes/No with brief reason)
+
+**2. First Aid - What To Do NOW (Before Doctor/Hospital)**
+- 3-4 immediate steps the patient can take at home
+- Keep it simple and practical
+
+**3. When to See a Doctor**
+- Should they go? (Yes/No/Maybe)
+- What type of doctor/specialist?
+- Warning signs that need immediate attention
+
+**4. Prevention Tips**
+- 2-3 quick preventive measures
+
+Keep responses SHORT, practical, and compassionate. Focus on immediate actionable advice. End with a brief encouraging note from Dr. WeCare."""
 
     # Call Ollama
     image_path = None
@@ -256,14 +286,35 @@ Be clear, practical, and appropriate for limited healthcare access."""
     
     if image:
         image_bytes = await image.read()
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded image is empty")
+
+        # Normalize to PNG so Ollama gets a known format.
+        if Image is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Image upload support is not installed on the server (missing Pillow). Install Pillow or submit text-only.",
+            )
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as im:
+                im = im.convert("RGB")
+                out = io.BytesIO()
+                im.save(out, format="PNG")
+                normalized_bytes = out.getvalue()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported image format. Please upload a PNG or JPG image.",
+            ) from exc
+
+        image_b64 = base64.b64encode(normalized_bytes).decode("utf-8")
         payload["images"] = [image_b64]
-        
-        # Save image
-        filename = f"{current_user.id}_{datetime.utcnow().timestamp()}.jpg"
+
+        # Save image (normalized)
+        filename = f"{current_user.id}_{datetime.utcnow().timestamp()}.png"
         image_path = os.path.join(UPLOAD_DIR, filename)
         with open(image_path, "wb") as f:
-            f.write(image_bytes)
+            f.write(normalized_bytes)
     
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
@@ -294,7 +345,7 @@ Be clear, practical, and appropriate for limited healthcare access."""
     # Save consultation
     consultation = Consultation(
         user_id=current_user.id,
-        symptoms=symptoms,
+        symptoms=symptoms_text,
         image_path=image_path,
         ai_response=ai_response,
         priority=priority,
