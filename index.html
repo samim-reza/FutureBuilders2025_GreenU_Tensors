@@ -1,40 +1,384 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Qwen Image + Prompt</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeCare - Medical Assistant</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .user-info {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+        }
+
+        .btn-secondary {
+            background: #757575;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #616161;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .offline-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ff9800;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .response-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+
+        .priority {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .priority-critical {
+            background: #f44336;
+            color: white;
+        }
+
+        .priority-high {
+            background: #ff9800;
+            color: white;
+        }
+
+        .priority-medium {
+            background: #2196F3;
+            color: white;
+        }
+
+        .priority-low {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .doctor-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .doctor-card h4 {
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .doctor-card p {
+            margin: 3px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification-success {
+            background: #4CAF50;
+        }
+
+        .notification-error {
+            background: #f44336;
+        }
+
+        .notification-info {
+            background: #2196F3;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .tab.active {
+            background: white;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
-    <h2>Qwen Local Web Demo</h2>
-    <form id="qwen-form">
-        <label>Prompt:</label><br>
-        <input type="text" id="prompt" name="prompt" required><br><br>
+    <div id="offline-indicator" class="offline-indicator hidden">
+        📴 Offline Mode - Data will sync when online
+    </div>
 
-        <label>Image:</label><br>
-        <input type="file" id="image" name="image" accept="image/*" required><br><br>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🏥 WeCare</div>
+            <div id="user-section" class="user-info hidden">
+                <span id="username-display"></span>
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+            <div id="auth-buttons" class="user-info">
+                <button class="btn btn-primary" onclick="showLogin()">Login</button>
+                <button class="btn btn-secondary" onclick="showRegister()">Register</button>
+            </div>
+        </div>
 
-        <button type="submit">Submit</button>
-    </form>
+        <!-- Auth Forms -->
+        <div id="login-form" class="card hidden">
+            <h2>Login to WeCare</h2>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAuthForms()">Cancel</button>
+            </form>
+        </div>
 
-    <h3>Response:</h3>
-    <pre id="response"></pre>
+        <div id="register-form" class="card hidden">
+            <h2>Register for WeCare</h2>
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="full_name">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" name="phone">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Register</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAuthForms()">Cancel</button>
+            </form>
+        </div>
 
-    <script>
-    const form = document.getElementById('qwen-form');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        <!-- Main App -->
+        <div id="main-app" class="hidden">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('consultation')">New Consultation</button>
+                <button class="tab" onclick="showTab('resources')">Doctors & Hospitals</button>
+            </div>
 
-        const formData = new FormData();
-        formData.append("prompt", document.getElementById('prompt').value);
-        formData.append("image", document.getElementById('image').files[0]);
+            <!-- Consultation Tab -->
+            <div id="consultation-tab" class="card">
+                <h2>Medical Consultation</h2>
+                <form id="consultation-form" onsubmit="handleConsultation(event)">
+                    <div class="form-group">
+                        <label>Describe Your Symptoms</label>
+                        <textarea name="symptoms" placeholder="Example: I have a fever and headache for 2 days..." required></textarea>
+                    </div>
 
-        const res = await fetch("http://localhost:8000/generate", {
-            method: "POST",
-            body: formData
-        });
+                    <div class="form-group">
+                        <label>Upload Image (Optional)</label>
+                        <input type="file" name="image" accept="image/*">
+                    </div>
 
-        const data = await res.json();
-        document.getElementById('response').innerText = data.response;
-    });
-    </script>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" name="use_history" id="use_history" checked>
+                        <label for="use_history">Use my medical history for better recommendations</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Get Medical Advice</button>
+                </form>
+
+                <div id="consultation-result" class="hidden">
+                    <h3>Medical Advice</h3>
+                    <div id="priority-badge"></div>
+                    <div id="ai-response" class="response-box"></div>
+                    
+                    <div id="first-aid-section" class="hidden">
+                        <h4>First Aid Steps</h4>
+                        <div id="first-aid-text" class="response-box"></div>
+                    </div>
+
+                    <div id="doctors-section" class="hidden">
+                        <h4>Recommended Doctors</h4>
+                        <div id="doctors-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources Tab -->
+            <div id="resources-tab" class="card hidden">
+                <h2>Healthcare Resources</h2>
+                
+                <h3>Doctors</h3>
+                <div id="doctors-resource-list" class="loading">Loading doctors...</div>
+
+                <h3 style="margin-top: 30px;">Hospitals</h3>
+                <div id="hospitals-list" class="loading">Loading hospitals...</div>
+
+                <h3 style="margin-top: 30px;">NGOs & Support Organizations</h3>
+                <div id="ngos-list" class="loading">Loading NGOs...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/db.js"></script>
+    <script src="/static/api.js"></script>
+    <script src="/static/app.js"></script>
 </body>
 </html>

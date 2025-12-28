@@ -7,3 +7,28 @@ The silent struggle : Why medical support in bangladesh's hill tracts and rural 
 In the sprawling greens of bangladesh;s hill tracts and the distant streches of rural villages, life often moves with a quiet rhythm yet behind that dalm lies a persistent struggle: access to medical support for millions living in these region, healthcare is not a guaranteed right but a long-distance hope, often travelling on unpaved roads, across rivrs or thwough steep, forested terrain.
 
 create a solution to overcome this challage for the helpless people with limited internet access, with the following requirements.
+
+
+p:
+so we are making a web app and here is the descriptiona
+
+Problem statement
+
+The silent struggle : Why medical support in bangladesh's hill tracts and rural regions remains hard to find
+
+In the sprawling greens of bangladesh;s hill tracts and the distant streches of rural villages, life often moves with a quiet rhythm yet behind that dalm lies a persistent struggle: access to medical support for millions living in these region, healthcare is not a guaranteed right but a long-distance hope, often travelling on unpaved roads, across rivrs or thwough steep, forested terrain.
+
+create a solution to overcome this challage for the helpless people with limited internet access, with the following requirements.
+
+
+this was my problem, now i want to make the web app, with python, what i need to do i am explaining below
+
+1. when there is no internet it will save the users data to local and when connected to the internet it will send the data to hospital according to the emergency and prioriyt. the emergency of the data will be decide by the backend i mean by the AI.
+2. when running on local i mean without internet then according to the need it will suggest the first aid treatment, , for locally stored data we will use indexDB, when the network will be available it will be updated to the cloud, for cloud i will use mysql, i will host mysql on my local ubuntu.
+3. there will be an user account system and when giving any prompt or use the app iw will use his/her previous medical history for the next chat and recommendation, but there will be system of on off button, it the button is off it will not use the previous data for the new answer and if on it will use the previous data. and this is not mandatory to use image and text both at a time but use according to the user need.
+
+4. after giving the trearment sugegstions it will suggest the doctors appointment accrding to need. there will be a doctors section on indexdb with the specialisation and information and cahtbot will help to suggest doctor, make a dummy doctor list for the indexdb, also there will be ngo, hospital location on indexdb and it will share the address of those, 
+
+it will try to use cache data, whenever get any onternet access, it will load the needed information locally to use later
+
+and at last the name of the app will be wecare
