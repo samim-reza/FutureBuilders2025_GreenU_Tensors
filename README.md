@@ -8,12 +8,30 @@ Offline-first medical consultation and triage web app designed for rural / low-c
 
 ## Team & Institute
 
-- Green University of Bangladesh
-- Team: GreenU_Tensors
-- Members:
+- **University**: Green University of Bangladesh
+- **Team**: GreenU_Tensors
+- **Members**:
    - Samim Reza
    - Fahim Sarker Mridul
    - Maheer Jabin Priya
+
+## Problem Statement
+
+### The Silent Struggle: Why Medical Support in Bangladesh's Hill Tracts and Rural Regions Remains Hard to Find
+
+In the sprawling greens of Bangladesh's hill tracts and the distant stretches of rural villages, life often moves with a quiet rhythm. Yet behind that calm lies a persistent struggle: access to medical support. For millions living in these regions, healthcare is not a guaranteed right but a long-distance hope, often travelling on unpaved roads, across rivers, or through steep, forested terrain.
+
+**The Challenge:**
+- Remote geographical locations with poor transportation infrastructure
+- Limited or no internet connectivity in rural and hill tract areas
+- Shortage of doctors and medical facilities in remote regions
+- Lack of immediate medical guidance for emergencies
+- Long distances to reach the nearest hospital or clinic
+- Language barriers (need for Bengali language support)
+
+**Our Solution: WeCare**
+
+WeCare addresses these challenges by providing an offline-first medical consultation system that works even without internet connectivity, bringing medical guidance directly to those who need it most.
 
 ## What We Built
 
@@ -25,6 +43,59 @@ When internet is available, the system uses the MySQL server database as the cen
 
 - When online, the app uses the backend AI (vision + text) and syncs consultation data to a central database.
 - When offline, the app continues to operate using browser storage (IndexedDB) and cached resources, then auto-syncs when connectivity returns.
+
+## How WeCare Handles Limited Internet Access
+
+WeCare is specifically designed for areas with unreliable or no internet connectivity:
+
+### 1. **Offline-First Architecture**
+   - The entire app works without internet using Progressive Web App (PWA) technology
+   - Service workers cache all essential app files locally on the device
+   - Users can browse doctors, hospitals, and NGO information offline
+
+### 2. **Local AI Processing**
+   - Qwen3-VL-2B model runs locally on the server (no cloud dependency)
+   - Community-level deployment: one server can serve an entire village/area via local network
+   - No need for external internet to get AI-powered medical consultations
+
+### 3. **IndexedDB Local Storage**
+   - All user consultations are saved locally in the browser
+   - Medical history, doctor lists, hospital information cached for offline access
+   - Data persists even if the app is closed
+
+### 4. **Smart Sync Mechanism**
+   - When internet becomes available, unsynced data automatically uploads to central server
+   - Batch synchronization reduces data usage
+   - Conflict resolution ensures no data loss
+
+### 5. **LAN-Based Community Server**
+   - Can be deployed as a local network server (like FTP)
+   - Multiple users connect via WiFi/LAN without internet
+   - Shared resources (doctors, hospitals) reduce redundancy
+
+### 6. **Bilingual Support**
+   - Supports both Bengali and English languages
+   - Automatic language detection (responds in user's language)
+   - Critical for rural populations more comfortable with Bengali
+
+### Real-World Scenario:
+> A community health worker in a remote hill tract can set up a WeCare server connected to a local router. Villagers can access medical consultations via their phones connected to the WiFi—no internet required. When the health worker travels to an area with internet, all consultations sync to the central database for hospital review.
+
+## Development Tools & Technologies
+
+This project was built using modern AI-assisted development tools:
+
+### **AI Assistants**
+- **Claude AI (Anthropic)**: Used for architecture design, code generation, and problem-solving
+- **GitHub Copilot**: Code completion, debugging assistance, and rapid prototyping
+
+### **Why AI-Assisted Development?**
+Using AI tools accelerated our development process by:
+- Faster prototyping and iteration
+- Intelligent code suggestions and bug detection
+- Best practice recommendations for FastAPI, PWA, and offline-first architecture
+- Bilingual prompt engineering for Bengali/English language detection
+- Complex async/await patterns for API and Ollama integration
 
 ## Key Features
 
