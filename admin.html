@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - WeCare</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e8eaf6 0%, #f3e5f5 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(94, 53, 177, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .header:hover {
+            box-shadow: 0 6px 30px rgba(94, 53, 177, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .logout-btn {
+            background: white;
+            color: #7e57c2;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .logout-btn:hover {
+            background: #f3e5f5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        /* Login Form */
+        .login-form {
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            max-width: 420px;
+            margin: 100px auto;
+            padding: 45px;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            border: 1px solid rgba(126, 87, 194, 0.1);
+        }
+
+        .login-form h2 {
+            background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 35px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #7e57c2;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(126, 87, 194, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(126, 87, 194, 0.3);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #7146b3 0%, #512da8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(126, 87, 194, 0.4);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            border: 1px solid rgba(126, 87, 194, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 6px 25px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+            border-color: rgba(126, 87, 194, 0.3);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #757575;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Tables */
+        .table-container {
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            overflow-x: auto;
+            border: 1px solid rgba(126, 87, 194, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: linear-gradient(135deg, #f5f3ff 0%, #faf8ff 100%);
+            background: linear-gradient(135deg, #f5f3ff 0%, #faf8ff 100%);
+            color: #7e57c2;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        tr {
+            transition: all 0.2s ease;
+        }
+
+        tr:hover {
+            background: linear-gradient(135deg, #f8f7fc 0%, #fdfcff 100%);
+            transform: scale(1.01);
+        }
+
+        .priority-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .priority-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .priority-critical {
+            background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+            color: white;
+        }
+
+        .priority-high {
+            background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+            color: white;
+        }
+
+        .priority-medium {
+            background: linear-gradient(135deg, #42a5f5 0%, #2196F3 100%);
+            color: white;
+        }
+
+        .priority-low {
+            background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+            color: white;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .status-pending {
+            background: linear-gradient(135deg, #fff59d 0%, #fdd835 100%);
+            color: #f57f17;
+        }
+
+        .status-under_supervision {
+            background: linear-gradient(135deg, #81d4fa 0%, #29b6f6 100%);
+            color: #01579b;
+        }
+
+        .status-solved {
+            background: linear-gradient(135deg, #a5d6a7 0%, #66bb6a 100%);
+            color: #2e7d32;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 6px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(126, 87, 194, 0.2);
+        }
+
+        .action-btn:hover {
+            background: linear-gradient(135deg, #7146b3 0%, #512da8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(126, 87, 194, 0.3);
+        }
+
+        .action-btn:disabled {
+            background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .action-btn.solve-btn {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            box-shadow: 0 2px 8px rgba(102, 187, 106, 0.2);
+        }
+
+        .action-btn.solve-btn:hover {
+            background: linear-gradient(135deg, #5cb860 0%, #3d8b40 100%);
+            box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
+        }
+
+        .action-btn.release-btn {
+            background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+            box-shadow: 0 2px 8px rgba(255, 167, 38, 0.2);
+        }
+
+        .action-btn.release-btn:hover {
+            background: linear-gradient(135deg, #fb9019 0%, #f57c00 100%);
+            box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
+        }
+
+        .view-btn {
+            background: linear-gradient(135deg, #42a5f5 0%, #2196F3 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+        }
+
+        .view-btn:hover {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        .error-message {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Form -->
+    <div id="login-container">
+        <div class="login-form">
+            <h2>🏥 WeCare Admin</h2>
+            <div id="error-message" class="error-message hidden"></div>
+            <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            <p style="text-align: center; margin-top: 20px; color: #666;">
+                <a href="/landing.html" style="color: #667eea; text-decoration: none;">← Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="admin-dashboard" class="hidden">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🏥 WeCare Admin Dashboard</h1>
+                    <p>Welcome, <span id="admin-name"></span></p>
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-patients">0</div>
+                    <div class="stat-label">Total Patients</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-consultations">0</div>
+                    <div class="stat-label">Total Consultations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pending-cases">0</div>
+                    <div class="stat-label">Pending Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="under-supervision">0</div>
+                    <div class="stat-label">Under Supervision</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="solved-cases">0</div>
+                    <div class="stat-label">Solved Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="critical-cases">0</div>
+                    <div class="stat-label">Critical Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="high-cases">0</div>
+                    <div class="stat-label">High Priority</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('patients')">Patients</button>
+                <button class="tab" onclick="showTab('consultations')">Consultations</button>
+            </div>
+
+            <!-- Patients Tab -->
+            <div id="patients-tab" class="table-container">
+                <h2 style="margin-bottom: 20px; color: #667eea;">Registered Patients</h2>
+                <table id="patients-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Blood Group</th>
+                            <th>Consultations</th>
+                            <th>Registered</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patients-tbody">
+                        <tr><td colspan="8" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Consultations Tab -->
+            <div id="consultations-tab" class="table-container hidden">
+                <h2 style="margin-bottom: 20px; color: #667eea;">Recent Consultations</h2>
+                <table id="consultations-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Patient</th>
+                            <th>Blood Group</th>
+                            <th>Symptoms</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Supervisor</th>
+                            <th>Specialization</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consultations-tbody">
+                        <tr><td colspan="10" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Detail Modal -->
+    <div id="patient-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="patient-detail-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let adminToken = localStorage.getItem('admin_token');
+
+        // Check if already logged in
+        if (adminToken) {
+            verifyAdminToken();
+        }
+
+        async function handleAdminLogin(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: formData.get('username'),
+                        password: formData.get('password')
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Invalid credentials');
+                }
+
+                const data = await response.json();
+                adminToken = data.access_token;
+                localStorage.setItem('admin_token', adminToken);
+                
+                // Verify admin access
+                await verifyAdminToken();
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function verifyAdminToken() {
+            try {
+                const response = await fetch(`${API_URL}/api/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+
+                if (!response.ok) throw new Error('Session expired');
+
+                const user = await response.json();
+                
+                // Check if user is admin
+                const statsResponse = await fetch(`${API_URL}/api/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+
+                if (!statsResponse.ok) {
+                    throw new Error('Admin access required');
+                }
+
+                // Show dashboard
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                document.getElementById('admin-name').textContent = user.full_name || user.username;
+                
+                loadDashboard();
+            } catch (error) {
+                localStorage.removeItem('admin_token');
+                adminToken = null;
+                showError(error.message);
+            }
+        }
+
+        async function loadDashboard() {
+            await Promise.all([
+                loadStats(),
+                loadPatients(),
+                loadConsultations()
+            ]);
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                
+                document.getElementById('total-patients').textContent = data.total_patients;
+                document.getElementById('total-consultations').textContent = data.total_consultations;
+                document.getElementById('pending-cases').textContent = data.pending_cases;
+                document.getElementById('under-supervision').textContent = data.under_supervision;
+                document.getElementById('solved-cases').textContent = data.solved_cases;
+                document.getElementById('critical-cases').textContent = data.critical_cases;
+                document.getElementById('high-cases').textContent = data.high_priority_cases;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadPatients() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/patients`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                
+                const tbody = document.getElementById('patients-tbody');
+                if (data.patients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No patients registered yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.patients.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.full_name || p.username}</td>
+                        <td>${p.email}</td>
+                        <td>${p.phone || '-'}</td>
+                        <td>${p.blood_group || '-'}</td>
+                        <td>${p.total_consultations}</td>
+                        <td>${new Date(p.created_at).toLocaleDateString()}</td>
+                        <td><button class="view-btn" onclick="viewPatient(${p.id})">View</button></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            }
+        }
+
+        async function loadConsultations() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/consultations`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                
+                const tbody = document.getElementById('consultations-tbody');
+                if (data.consultations.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">No consultations yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.consultations.map(c => `
+                    <tr>
+                        <td>${c.id}</td>
+                        <td>${c.patient_name}</td>
+                        <td>${c.patient_blood_group || '-'}</td>
+                        <td>${c.symptoms.substring(0, 50)}...</td>
+                        <td><span class="priority-badge priority-${c.priority}">${c.priority.toUpperCase()}</span></td>
+                        <td><span class="status-badge status-${c.status}">${formatStatus(c.status)}</span></td>
+                        <td>${c.supervising_admin || '-'}</td>
+                        <td>${c.recommended_specialization || '-'}</td>
+                        <td>${new Date(c.created_at).toLocaleString()}</td>
+                        <td>
+                            <button class="view-btn" onclick="viewConsultation(${c.id}, ${c.patient_id})">View</button>
+                            ${c.status === 'pending' ? `<button class="action-btn" onclick="takeCase(${c.id})">Take Case</button>` : ''}
+                            ${c.status !== 'solved' ? `<button class="action-btn solve-btn" onclick="markSolved(${c.id})">Solved</button>` : ''}
+                            ${c.status === 'under_supervision' ? `<button class="action-btn release-btn" onclick="releaseCase(${c.id})">Release</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading consultations:', error);
+            }
+        }
+
+        function formatStatus(status) {
+            return status.replace('_', ' ').toUpperCase();
+        }
+
+        async function takeCase(consultationId) {
+            if (!confirm('Take this case under your supervision?')) return;
+            
+            try {
+                await fetch(`${API_URL}/api/admin/consultations/${consultationId}/take-case`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                alert('Case taken successfully');
+                loadConsultations();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function markSolved(consultationId) {
+            const notes = prompt('Add resolution notes (optional):');
+            
+            try {
+                const formData = new FormData();
+                if (notes) formData.append('notes', notes);
+                
+                await fetch(`${API_URL}/api/admin/consultations/${consultationId}/mark-solved`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` },
+                    body: formData
+                });
+                alert('Case marked as solved');
+                loadConsultations();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function releaseCase(consultationId) {
+            if (!confirm('Release this case back to pending?')) return;
+            
+            try {
+                await fetch(`${API_URL}/api/admin/consultations/${consultationId}/release-case`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                alert('Case released successfully');
+                loadConsultations();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function viewPatient(patientId) {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/patient/${patientId}`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                
+                const content = `
+                    <h2>Patient Details</h2>
+                    <div style="margin: 20px 0;">
+                        <p><strong>Name:</strong> ${data.patient.full_name || data.patient.username}</p>
+                        <p><strong>Email:</strong> ${data.patient.email}</p>
+                        <p><strong>Phone:</strong> ${data.patient.phone || 'Not provided'}</p>
+                        <p><strong>Blood Group:</strong> ${data.patient.blood_group || 'Not provided'}</p>
+                        <p><strong>Registered:</strong> ${new Date(data.patient.created_at).toLocaleString()}</p>
+                    </div>
+
+                    <h3>Consultation History (${data.consultations.length})</h3>
+                    ${data.consultations.map(c => `
+                        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                            <p><strong>Date:</strong> ${new Date(c.created_at).toLocaleString()}</p>
+                            <p><strong>Priority:</strong> <span class="priority-badge priority-${c.priority}">${c.priority}</span></p>
+                            <p><strong>Symptoms:</strong> ${c.symptoms}</p>
+                            <p><strong>Specialization:</strong> ${c.recommended_specialization || 'N/A'}</p>
+                            <details>
+                                <summary style="cursor: pointer; color: #667eea;">View AI Summary</summary>
+                                <div style="margin-top: 10px; padding: 10px; background: #f8f8f8; border-radius: 5px; line-height: 1.6;">
+                                    ${marked.parse(c.ai_response || 'No response available')}
+                                </div>
+                            </details>
+                        </div>
+                    `).join('')}
+                `;
+                
+                document.getElementById('patient-detail-content').innerHTML = content;
+                document.getElementById('patient-modal').style.display = 'block';
+            } catch (error) {
+                alert('Error loading patient details');
+            }
+        }
+
+        function viewConsultation(consultationId, patientId) {
+            viewPatient(patientId);
+        }
+
+        function closeModal() {
+            document.getElementById('patient-modal').style.display = 'none';
+        }
+
+        function showTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide content
+            if (tab === 'patients') {
+                document.getElementById('patients-tab').classList.remove('hidden');
+                document.getElementById('consultations-tab').classList.add('hidden');
+            } else {
+                document.getElementById('patients-tab').classList.add('hidden');
+                document.getElementById('consultations-tab').classList.remove('hidden');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_token');
+            window.location.reload();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('patient-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

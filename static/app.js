@@ -66,13 +66,16 @@ async function handleRegister(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     
+    const bloodGroup = formData.get('blood_group');
+    
     try {
         const data = await api.register({
             username: formData.get('username'),
             email: formData.get('email'),
             password: formData.get('password'),
             full_name: formData.get('full_name') || undefined,
-            phone: formData.get('phone') || undefined
+            phone: formData.get('phone') || undefined,
+            blood_group: bloodGroup || undefined
         });
         
         currentUser = data.user;
@@ -110,10 +113,14 @@ function showTab(tabName) {
     
     // Show/hide tab content
     document.getElementById('consultation-tab').classList.add('hidden');
+    document.getElementById('history-tab').classList.add('hidden');
     document.getElementById('resources-tab').classList.add('hidden');
     
     if (tabName === 'consultation') {
         document.getElementById('consultation-tab').classList.remove('hidden');
+    } else if (tabName === 'history') {
+        document.getElementById('history-tab').classList.remove('hidden');
+        loadConsultationHistory();
     } else if (tabName === 'resources') {
         document.getElementById('resources-tab').classList.remove('hidden');
         loadResourcesTab();
@@ -302,6 +309,96 @@ function displayConsultationResult(result) {
     
     // Scroll to result
     document.getElementById('consultation-result').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Consultation History Management
+async function loadConsultationHistory() {
+    const historyList = document.getElementById('history-list');
+    
+    try {
+        const data = await api.getConsultationHistory();
+        
+        if (data.consultations.length === 0) {
+            historyList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No consultation history yet. Start your first consultation!</p>';
+            return;
+        }
+
+        historyList.innerHTML = data.consultations.map(c => `
+            <div class="history-item" id="history-${c.id}">
+                <input type="checkbox" class="history-checkbox" data-id="${c.id}">
+                <h4>
+                    ${new Date(c.created_at).toLocaleString()}
+                    <span class="priority priority-${c.priority}">${c.priority.toUpperCase()}</span>
+                    <span class="status-badge status-${c.status}">${formatStatus(c.status)}</span>
+                </h4>
+                <p><strong>Symptoms:</strong> ${c.symptoms || 'Image consultation'}</p>
+                ${c.recommended_specialization ? `<p><strong>Recommended:</strong> ${c.recommended_specialization}</p>` : ''}
+                <button class="expand-btn" onclick="toggleHistoryDetails(${c.id})">▼ View Full Response</button>
+                <button class="delete-single-btn" onclick="deleteSingleHistory(${c.id})">Delete</button>
+                <div class="history-details" id="details-${c.id}">
+                    ${marked.parse(c.ai_response)}
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        historyList.innerHTML = `<p style="text-align: center; padding: 40px; color: #f44336;">Error loading history: ${error.message}</p>`;
+    }
+}
+
+function formatStatus(status) {
+    return status.replace('_', ' ').toUpperCase();
+}
+
+function toggleHistoryDetails(id) {
+    const details = document.getElementById(`details-${id}`);
+    details.classList.toggle('expanded');
+    event.target.textContent = details.classList.contains('expanded') ? '▲ Hide Response' : '▼ View Full Response';
+}
+
+async function deleteSingleHistory(id) {
+    if (!confirm('Are you sure you want to delete this consultation?')) return;
+    
+    try {
+        await api.deleteConsultation(id);
+        document.getElementById(`history-${id}`).remove();
+        showNotification('Consultation deleted', 'success');
+        
+        // Reload if no items left
+        const remaining = document.querySelectorAll('.history-item').length;
+        if (remaining === 0) {
+            loadConsultationHistory();
+        }
+    } catch (error) {
+        showNotification('Failed to delete: ' + error.message, 'error');
+    }
+}
+
+function selectAllHistory() {
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    event.target.textContent = allChecked ? 'Select All' : 'Deselect All';
+}
+
+async function deleteSelectedHistory() {
+    const selected = Array.from(document.querySelectorAll('.history-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.id));
+    
+    if (selected.length === 0) {
+        showNotification('No consultations selected', 'error');
+        return;
+    }
+
+    if (!confirm(`Delete ${selected.length} consultation(s)?`)) return;
+    
+    try {
+        await api.deleteMultipleConsultations(selected);
+        showNotification(`Deleted ${selected.length} consultation(s)`, 'success');
+        loadConsultationHistory();
+    } catch (error) {
+        showNotification('Failed to delete: ' + error.message, 'error');
+    }
 }
 
 // Resources tab

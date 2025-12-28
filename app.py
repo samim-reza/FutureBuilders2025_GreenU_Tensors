@@ -19,7 +19,7 @@ except Exception:  # Pillow not installed
     Image = None
 
 from database import get_db, init_db
-from models import User, Consultation, MedicalHistory, Doctor, Hospital, NGO, PriorityLevel
+from models import User, Consultation, MedicalHistory, Doctor, Hospital, NGO, PriorityLevel, ConsultationStatus
 from auth import (
     get_password_hash,
     verify_password,
@@ -54,6 +54,13 @@ class UserRegister(BaseModel):
     password: str
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    blood_group: Optional[str] = None
+
+    def validate_blood_group(self):
+        if self.blood_group:
+            valid_groups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+            if self.blood_group not in valid_groups:
+                raise ValueError(f"Invalid blood group. Must be one of: {', '.join(valid_groups)}")
 
 
 class UserLogin(BaseModel):
@@ -84,7 +91,27 @@ def startup():
 
 @app.get("/")
 def root():
+    return FileResponse("landing.html")
+
+
+@app.get("/app")
+def app_page():
     return FileResponse("index.html")
+
+
+@app.get("/index.html")
+def index_page():
+    return FileResponse("index.html")
+
+
+@app.get("/admin.html")
+def admin_page():
+    return FileResponse("admin.html")
+
+
+@app.get("/landing.html")
+def landing_page():
+    return FileResponse("landing.html")
 
 
 @app.get("/manifest.json")
@@ -99,6 +126,12 @@ def service_worker():
 
 @app.post("/api/auth/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
+    # Validate blood group
+    try:
+        user_data.validate_blood_group()
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
     # Check if user exists
     existing = db.query(User).filter(
         (User.username == user_data.username) | (User.email == user_data.email)
@@ -116,6 +149,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         hashed_password=get_password_hash(user_data.password),
         full_name=user_data.full_name,
         phone=user_data.phone,
+        blood_group=user_data.blood_group,
     )
     db.add(user)
     db.commit()
@@ -214,6 +248,39 @@ def extract_specialization(ai_response: str) -> Optional[str]:
     
     return None
 
+async def generate_summary(full_response: str) -> str:
+    """Generate a concise summary of the AI response using Ollama"""
+    summary_prompt = f"""Summarize the following medical consultation response in 2-3 sentences. 
+Keep only the most critical information about diagnosis, urgency, and recommended action.
+
+Original response:
+{full_response}
+
+Provide ONLY the summary, no additional text:"""
+    
+    try:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": summary_prompt,
+            "stream": False,
+            "options": {"temperature": 0.3}
+        }
+        
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            res = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
+            res.raise_for_status()
+            data = res.json()
+            summary = data.get("response", "").strip()
+            
+            # Limit summary length
+            if len(summary) > 500:
+                summary = summary[:497] + "..."
+            
+            return summary if summary else full_response[:200] + "..."
+    except Exception as e:
+        print(f"Summary generation failed: {e}")
+        # Fallback: return first 200 chars
+        return full_response[:200] + "..."
 
 @app.post("/api/consultation")
 async def create_consultation(
@@ -244,6 +311,21 @@ async def create_consultation(
                 context += "\n"
             context += "\n"
     
+    # Add conversation context from last k consultations
+    k = 5  # Number of previous consultations to include as context
+    previous_consultations = db.query(Consultation).filter(
+        Consultation.user_id == current_user.id
+    ).order_by(Consultation.created_at.desc()).limit(k).all()
+    
+    conversation_history = ""
+    if previous_consultations:
+        conversation_history = "Previous conversation history (for context):\n\n"
+        for i, prev in enumerate(reversed(previous_consultations), 1):
+            conversation_history += f"[Session {i}]\n"
+            conversation_history += f"Patient: {prev.symptoms}\n"
+            conversation_history += f"Dr. WeCare: {prev.ai_response[:200]}...\n\n"
+        conversation_history += "---\n\n"
+    
     # Prepare AI prompt (support text-only, image-only, or both)
     if symptoms_text:
         user_part = f"Patient query: {symptoms_text}\n"
@@ -254,7 +336,7 @@ async def create_consultation(
 
 IMPORTANT: You ONLY provide medical and healthcare advice. If the patient's query is not related to health, medicine, symptoms, or medical concerns, politely respond: "I'm Dr. WeCare, a medical assistant. I can only help with health-related questions. Please describe your medical symptoms or health concerns, and I'll be happy to assist you."
 
-{context}{user_part}
+{context}{conversation_history}{user_part}
 
 Provide a CONCISE response (maximum 300 words) with these sections:
 
@@ -342,12 +424,15 @@ Keep responses SHORT, practical, and compassionate. Focus on immediate actionabl
         if len(parts) > 1:
             first_aid = "First aid" + parts[1].split("\n\n")[0]
     
-    # Save consultation
+    # Generate summary for storage (keep full response for returning to user)
+    ai_summary = await generate_summary(ai_response)
+    
+    # Save consultation with summary
     consultation = Consultation(
         user_id=current_user.id,
         symptoms=symptoms_text,
         image_path=image_path,
-        ai_response=ai_response,
+        ai_response=ai_summary,  # Store summary instead of full response
         priority=priority,
         first_aid_suggestions=first_aid,
         recommended_specialization=specialization,
@@ -460,8 +545,304 @@ def get_consultation_history(
                 "symptoms": c.symptoms,
                 "ai_response": c.ai_response,
                 "priority": c.priority.value,
+                "status": c.status.value,
+                "recommended_specialization": c.recommended_specialization,
                 "created_at": c.created_at.isoformat()
             }
             for c in consultations
         ]
+    }
+
+
+@app.delete("/api/consultations/{consultation_id}")
+def delete_consultation(
+    consultation_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a specific consultation (user can only delete their own)"""
+    consultation = db.query(Consultation).filter(
+        Consultation.id == consultation_id,
+        Consultation.user_id == current_user.id
+    ).first()
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    db.delete(consultation)
+    db.commit()
+    return {"message": "Consultation deleted successfully"}
+
+
+@app.post("/api/consultations/delete-multiple")
+def delete_multiple_consultations(
+    consultation_ids: list[int],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete multiple consultations at once"""
+    deleted_count = db.query(Consultation).filter(
+        Consultation.id.in_(consultation_ids),
+        Consultation.user_id == current_user.id
+    ).delete(synchronize_session=False)
+    
+    db.commit()
+    return {"message": f"Deleted {deleted_count} consultations"}
+
+
+# Admin helper function
+def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Verify current user is an admin"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
+
+
+# Admin Case Management Endpoints
+
+@app.post("/api/admin/consultations/{consultation_id}/take-case")
+def take_case(
+    consultation_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin takes a case under supervision"""
+    consultation = db.query(Consultation).filter(
+        Consultation.id == consultation_id
+    ).first()
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    if consultation.status != ConsultationStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Case is already {consultation.status.value}. Cannot take case."
+        )
+    
+    consultation.status = ConsultationStatus.UNDER_SUPERVISION
+    consultation.supervising_admin_id = current_admin.id
+    db.commit()
+    
+    return {
+        "message": "Case taken successfully",
+        "status": consultation.status.value,
+        "supervising_admin": current_admin.username
+    }
+
+
+@app.post("/api/admin/consultations/{consultation_id}/mark-solved")
+def mark_case_solved(
+    consultation_id: int,
+    notes: str = Form(None),
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Mark a case as solved"""
+    consultation = db.query(Consultation).filter(
+        Consultation.id == consultation_id
+    ).first()
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    if consultation.status == ConsultationStatus.SOLVED:
+        raise HTTPException(status_code=400, detail="Case is already marked as solved")
+    
+    # Allow marking as solved if supervising admin or if taking over
+    if consultation.status == ConsultationStatus.PENDING:
+        consultation.supervising_admin_id = current_admin.id
+    
+    consultation.status = ConsultationStatus.SOLVED
+    if notes:
+        consultation.supervision_notes = notes
+    db.commit()
+    
+    return {
+        "message": "Case marked as solved",
+        "status": consultation.status.value
+    }
+
+
+@app.post("/api/admin/consultations/{consultation_id}/release-case")
+def release_case(
+    consultation_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Release a case back to pending status"""
+    consultation = db.query(Consultation).filter(
+        Consultation.id == consultation_id
+    ).first()
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    if consultation.status == ConsultationStatus.SOLVED:
+        raise HTTPException(status_code=400, detail="Cannot release a solved case")
+    
+    # Only supervising admin can release
+    if consultation.supervising_admin_id != current_admin.id:
+        raise HTTPException(status_code=403, detail="Only supervising admin can release this case")
+    
+    consultation.status = ConsultationStatus.PENDING
+    consultation.supervising_admin_id = None
+    db.commit()
+    
+    return {
+        "message": "Case released successfully",
+        "status": consultation.status.value
+    }
+
+
+# Admin Data Access Endpoints
+
+
+@app.get("/api/admin/patients")
+def get_all_patients(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin: Get all registered patients"""
+    patients = db.query(User).filter(User.is_admin == False).all()
+    return {
+        "patients": [
+            {
+                "id": p.id,
+                "username": p.username,
+                "full_name": p.full_name,
+                "email": p.email,
+                "phone": p.phone,
+                "blood_group": p.blood_group,
+                "created_at": p.created_at.isoformat(),
+                "total_consultations": len(p.consultations)
+            }
+            for p in patients
+        ]
+    }
+
+
+@app.get("/api/admin/consultations")
+def get_all_consultations(
+    limit: int = 50,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin: Get all consultations with patient info"""
+    consultations = db.query(Consultation).order_by(
+        Consultation.created_at.desc()
+    ).limit(limit).all()
+    
+    return {
+        "consultations": [
+            {
+                "id": c.id,
+                "patient_id": c.user_id,
+                "patient_name": c.user.full_name or c.user.username,
+                "patient_phone": c.user.phone,
+                "patient_blood_group": c.user.blood_group,
+                "symptoms": c.symptoms,
+                "ai_response": c.ai_response,
+                "priority": c.priority.value,
+                "status": c.status.value,
+                "supervising_admin": db.query(User).get(c.supervising_admin_id).username if c.supervising_admin_id else None,
+                "supervision_notes": c.supervision_notes,
+                "recommended_specialization": c.recommended_specialization,
+                "created_at": c.created_at.isoformat(),
+                "is_synced": c.is_synced
+            }
+            for c in consultations
+        ]
+    }
+
+
+@app.get("/api/admin/patient/{patient_id}")
+def get_patient_detail(
+    patient_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin: Get detailed info about a specific patient"""
+    patient = db.query(User).filter(User.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    consultations = db.query(Consultation).filter(
+        Consultation.user_id == patient_id
+    ).order_by(Consultation.created_at.desc()).all()
+    
+    medical_history = db.query(MedicalHistory).filter(
+        MedicalHistory.user_id == patient_id
+    ).all()
+    
+    return {
+        "patient": {
+            "id": patient.id,
+            "username": patient.username,
+            "full_name": patient.full_name,
+            "email": patient.email,
+            "phone": patient.phone,
+            "blood_group": patient.blood_group,
+            "address": patient.address,
+            "created_at": patient.created_at.isoformat()
+        },
+        "consultations": [
+            {
+                "id": c.id,
+                "symptoms": c.symptoms,
+                "ai_response": c.ai_response,
+                "priority": c.priority.value,
+                "recommended_specialization": c.recommended_specialization,
+                "created_at": c.created_at.isoformat()
+            }
+            for c in consultations
+        ],
+        "medical_history": [
+            {
+                "condition": h.condition,
+                "is_chronic": h.is_chronic,
+                "notes": h.notes
+            }
+            for h in medical_history
+        ]
+    }
+
+
+@app.get("/api/admin/stats")
+def get_admin_stats(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin: Get dashboard statistics"""
+    total_patients = db.query(User).filter(User.is_admin == False).count()
+    total_consultations = db.query(Consultation).count()
+    critical_cases = db.query(Consultation).filter(
+        Consultation.priority == PriorityLevel.CRITICAL
+    ).count()
+    high_cases = db.query(Consultation).filter(
+        Consultation.priority == PriorityLevel.HIGH
+    ).count()
+    
+    # Case status counts
+    pending_cases = db.query(Consultation).filter(
+        Consultation.status == ConsultationStatus.PENDING
+    ).count()
+    under_supervision = db.query(Consultation).filter(
+        Consultation.status == ConsultationStatus.UNDER_SUPERVISION
+    ).count()
+    solved_cases = db.query(Consultation).filter(
+        Consultation.status == ConsultationStatus.SOLVED
+    ).count()
+    
+    return {
+        "total_patients": total_patients,
+        "total_consultations": total_consultations,
+        "critical_cases": critical_cases,
+        "high_priority_cases": high_cases,
+        "pending_cases": pending_cases,
+        "under_supervision": under_supervision,
+        "solved_cases": solved_cases
     }

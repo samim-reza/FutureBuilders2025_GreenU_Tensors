@@ -14,6 +14,12 @@ class PriorityLevel(enum.Enum):
     CRITICAL = "critical"
 
 
+class ConsultationStatus(enum.Enum):
+    PENDING = "pending"
+    UNDER_SUPERVISION = "under_supervision"
+    SOLVED = "solved"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -26,10 +32,11 @@ class User(Base):
     date_of_birth = Column(DateTime)
     blood_group = Column(String(10))
     address = Column(Text)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    consultations = relationship("Consultation", back_populates="user")
+    consultations = relationship("Consultation", back_populates="user", foreign_keys="Consultation.user_id")
     medical_histories = relationship("MedicalHistory", back_populates="user")
 
 
@@ -58,12 +65,16 @@ class Consultation(Base):
     priority = Column(Enum(PriorityLevel), default=PriorityLevel.LOW)
     first_aid_suggestions = Column(Text)
     recommended_specialization = Column(String(255))
+    status = Column(Enum(ConsultationStatus), default=ConsultationStatus.PENDING)
+    supervising_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    supervision_notes = Column(Text, nullable=True)
     use_history = Column(Boolean, default=True)
     is_synced = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_offline = Column(Boolean, default=False)
     
-    user = relationship("User", back_populates="consultations")
+    user = relationship("User", back_populates="consultations", foreign_keys="Consultation.user_id")
+    supervising_admin = relationship("User", foreign_keys="Consultation.supervising_admin_id")
 
 
 class Doctor(Base):

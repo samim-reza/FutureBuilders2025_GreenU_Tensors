@@ -97,6 +97,41 @@ class WeCareAPI {
         return this.request('/api/consultations/history');
     }
 
+    async deleteConsultation(consultationId) {
+        return this.request(`/api/consultations/${consultationId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async deleteMultipleConsultations(consultationIds) {
+        return this.request('/api/consultations/delete-multiple', {
+            method: 'POST',
+            body: JSON.stringify(consultationIds)
+        });
+    }
+
+    // Admin endpoints
+    async adminTakeCase(consultationId) {
+        return this.request(`/api/admin/consultations/${consultationId}/take-case`, {
+            method: 'POST'
+        });
+    }
+
+    async adminMarkSolved(consultationId, notes = null) {
+        const formData = new FormData();
+        if (notes) formData.append('notes', notes);
+        return this.request(`/api/admin/consultations/${consultationId}/mark-solved`, {
+            method: 'POST',
+            body: formData
+        });
+    }
+
+    async adminReleaseCase(consultationId) {
+        return this.request(`/api/admin/consultations/${consultationId}/release-case`, {
+            method: 'POST'
+        });
+    }
+
     isOnline() {
         return navigator.onLine;
     }
